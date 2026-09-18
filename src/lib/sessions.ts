@@ -88,6 +88,15 @@ export function initialLetters(name: string): string {
     .join("");
 }
 
+export function parseMoney(value: string): number {
+  const normalized = value
+    .replace(/[^0-9,.-]/g, "")
+    .replace(/\.(?=.*[.,])/g, "")
+    .replace(",", ".");
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
 export function clientSessionsSummary(
   sessions: Pick<SessionWithClient, "clientId" | "price" | "paid" | "status">[],
   clientId: ClientId,
