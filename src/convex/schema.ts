@@ -1,0 +1,79 @@
+import { authTables } from "@convex-dev/auth/server";
+import { defineSchema, defineTable } from "convex/server";
+import { Infer, v } from "convex/values";
+
+// default user roles. can add / remove based on the project as needed
+export const ROLES = {
+  ADMIN: "admin",
+  USER: "user",
+  MEMBER: "member",
+} as const;
+
+export const roleValidator = v.union(
+  v.literal(ROLES.ADMIN),
+  v.literal(ROLES.USER),
+  v.literal(ROLES.MEMBER),
+);
+export type Role = Infer<typeof roleValidator>;
+
+export const SESSION_STATUSES = [
+  "orcamento",
+  "agendada",
+  "realizada",
+  "cancelada",
+] as const;
+
+export const sessionStatusValidator = v.union(
+  ...SESSION_STATUSES.map((s) => v.literal(s)),
+);
+
+export type SessionStatus = Infer<typeof sessionStatusValidator>;
+
+const schema = defineSchema(
+  {
+    // default auth tables using convex auth.
+    ...authTables, // do not remove or modify
+
+    // the users table is the default users table that is brought in by the authTables
+    users: defineTable({
+      name: v.optional(v.string()), // name of the user. do not remove
+      image: v.optional(v.string()), // image of the user. do not remove
+      email: v.optional(v.string()), // email of the user. do not remove
+      emailVerificationTime: v.optional(v.number()), // email verification time. do not remove
+      isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
+
+      role: v.optional(roleValidator), // role of the user. do not remove
+    }).index("email", ["email"]), // index for the email. do not remove or modify
+
+    clients: defineTable({
+      userId: v.id("users"),
+      name: v.string(),
+      email: v.optional(v.string()),
+      phone: v.optional(v.string()),
+      notes: v.optional(v.string()),
+      createdAt: v.number(),
+    }).index("by_user", ["userId"]),
+
+    sessions: defineTable({
+      userId: v.id("users"),
+      clientId: v.id("clients"),
+      title: v.string(),
+      type: v.optional(v.string()),
+      date: v.number(), // timestamp (ms)
+      time: v.optional(v.string()), // "HH:mm"
+      location: v.optional(v.string()),
+      price: v.number(),
+      paid: v.number(),
+      status: sessionStatusValidator,
+      notes: v.optional(v.string()),
+      createdAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_client", ["clientId"]),
+  },
+  {
+    schemaValidation: false,
+  },
+);
+
+export default schema;
