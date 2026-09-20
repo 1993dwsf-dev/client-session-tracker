@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
-import { CalendarDays, ChevronDown, Pencil, Rows3, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronDown, Download, Pencil, Rows3, Trash2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import {
@@ -56,6 +56,7 @@ import {
   type SessionStatus,
   type SessionWithClient,
 } from "@/lib/sessions";
+import { decimalBR, downloadCsv } from "@/lib/csv";
 
 const columns: SheetColumn[] = [
   { label: "Sessão", width: 180 },
@@ -196,6 +197,39 @@ export function SheetSessions({
     }
   };
 
+  const handleExport = () => {
+    downloadCsv("sessoes-fotoflow.csv", [
+      [
+        "Sessão",
+        "Cliente",
+        "Tipo",
+        "Data",
+        "Hora",
+        "Local",
+        "Valor (R$)",
+        "Pago (R$)",
+        "Saldo (R$)",
+        "Status",
+      ],
+      ...sorted.map((session) => {
+        const due = Math.max(0, session.price - session.paid);
+        return [
+          session.title,
+          session.clientName,
+          session.type ?? "",
+          formatDate(session.date),
+          session.time ?? "",
+          session.location ?? "",
+          decimalBR(session.price),
+          decimalBR(session.paid),
+          decimalBR(due),
+          STATUS_META[session.status].label,
+        ];
+      }),
+    ]);
+    toast.success("Sessões exportadas em CSV.");
+  };
+
   const confirmDelete = async () => {
     if (!toDelete) return;
     try {
@@ -221,15 +255,27 @@ export function SheetSessions({
             · {sorted.length} linha(s)
           </span>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5"
-          onClick={openCreate}
-          disabled={clients.length === 0}
-        >
-          + Linha
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="gap-1.5 text-muted-foreground"
+            onClick={handleExport}
+            disabled={sorted.length === 0}
+          >
+            <Download className="size-3.5" />
+            CSV
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={openCreate}
+            disabled={clients.length === 0}
+          >
+            + Linha
+          </Button>
+        </div>
       </div>
 
       {/* Grid */}

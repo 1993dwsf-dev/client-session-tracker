@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
-import { Rows3, Trash2 } from "lucide-react";
+import { Download, Rows3, Trash2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import {
@@ -22,7 +22,13 @@ import {
   SheetTable,
   type SheetColumn,
 } from "./sheet";
-import { formatBRL, initialLetters, type SessionWithClient } from "@/lib/sessions";
+import {
+  clientSessionsSummary,
+  formatBRL,
+  initialLetters,
+  type SessionWithClient,
+} from "@/lib/sessions";
+import { decimalBR, downloadCsv } from "@/lib/csv";
 
 const columns: SheetColumn[] = [
   { label: "Cliente", width: 190 },
@@ -88,6 +94,25 @@ export function SheetClients({
     }
   };
 
+  const handleExport = () => {
+    downloadCsv("clientes-fotoflow.csv", [
+      ["Cliente", "E-mail", "Telefone", "Sessões", "Faturamento (R$)", "A receber (R$)", "Anotações"],
+      ...clients.map((client) => {
+        const summary = clientSessionsSummary(sessions, client._id);
+        return [
+          client.name,
+          client.email ?? "",
+          client.phone ?? "",
+          summary.count,
+          decimalBR(summary.revenue),
+          decimalBR(summary.due),
+          client.notes ?? "",
+        ];
+      }),
+    ]);
+    toast.success("Clientes exportados em CSV.");
+  };
+
   const confirmDelete = async () => {
     if (!deleting) return;
     try {
@@ -113,9 +138,21 @@ export function SheetClients({
             · {clients.length} linha(s)
           </span>
         </div>
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={handleAdd}>
-          + Linha
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="gap-1.5 text-muted-foreground"
+            onClick={handleExport}
+            disabled={clients.length === 0}
+          >
+            <Download className="size-3.5" />
+            CSV
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={handleAdd}>
+            + Linha
+          </Button>
+        </div>
       </div>
 
       {/* Grid */}
