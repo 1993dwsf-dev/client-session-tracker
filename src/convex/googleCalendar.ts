@@ -67,6 +67,7 @@ export const status = query({
     return {
       connected: true as const,
       calendarId: row.calendarId,
+      reminderMinutes: row.reminderMinutes,
       connectedAt: row.connectedAt,
     };
   },
@@ -233,6 +234,20 @@ export const setCalendarId = mutation({
   },
 });
 
+export const setReminderMinutes = mutation({
+  args: { minutes: v.number() },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Não autenticado.");
+    const row = await ctx.db
+      .query("googleTokens")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if (!row) throw new Error("Conecte sua conta primeiro.");
+    await ctx.db.patch(row._id, { reminderMinutes: args.minutes });
+  },
+});
+
 export const disconnect = mutation({
   args: {},
   handler: async (ctx) => {
@@ -281,8 +296,10 @@ export const getSessionForSync = query({
       price: session.price,
       paid: session.paid,
       notes: session.notes,
+      notifyClient: session.notifyClient,
       googleEventId: session.googleEventId,
       clientName: client?.name ?? "Cliente",
+      clientPhone: client?.phone,
     };
   },
 });
@@ -369,17 +386,22 @@ export const listCalendars = action({
   },
 });
 
-function buildEventBody(session: {
-  title: string;
-  clientName: string;
-  type?: string;
-  date: number;
-  time?: string;
+function buildEventBody(
+  session: {
+    title: string;
+    clientName: string;
+    type?: string;
+    date: number;
+    time?: string;
   location?: string;
   price: number;
   paid: number;
   notes?: string;
-}) {
+  notifyClient?: boolean;
+  clientPhone?: string;
+},
+  reminderMinutes?: number,
+) {
   const d = new Date(session.date);
   const [hh, mm] = (session.time ?? "09:00").split(":");
   const start = new Date(d);
@@ -391,30 +413,39 @@ function buildEventBody(session: {
   };
   const lines = [
     `Cliente: ${session.clientName}`,
+    session.clientPhone ? `WhatsApp: ${session.clientPhone}` : null,
     session.type ? `Tipo: ${session.type}` : null,
     `Valor: R$ ${session.price.toFixed(2)} | Pago: R$ ${session.paid.toFixed(2)}`,
+    session.notifyClient ? "⚠ Avisar o cliente sobre esta sessão" : null,
     session.notes ?? null,
   ].filter(Boolean);
+  const reminder = reminderMinutes ?? 60;
+  const remindersBlock =
+    reminder === 0
+      ? { useDefault: true }
+      : { useDefault: false, overrides: [{ method: "popup" as const, minutes: reminder }] };
   return {
     summary: `${session.title} — ${session.clientName}`,
     description: lines.join("\n"),
     ...(session.location ? { location: session.location } : {}),
     start: { dateTime: fmt(start), timeZone: "America/Sao_Paulo" },
     end: { dateTime: fmt(end), timeZone: "America/Sao_Paulo" },
+    reminders: remindersBlock,
   };
 }
 
 async function pushSession(ctx: ActionCtx, sessionId: string) {
   const session = await ctx.runQuery(api.googleCalendar.getSessionForSync, {
     sessionId: sessionId as never,
-  });
-  if (!session) throw new Error("Sessão não encontrada.");
+    });
+    if (!session) throw new Error("Sessão não encontrada.");
 
-  const token = await getFreshAccessToken(ctx);
-  const myToken = await ctx.runQuery(internal.googleCalendar.getMyToken, {});
-  const calendarId = myToken?.calendarId ?? "primary";
+    const token = await getFreshAccessToken(ctx);
+    const myToken = await ctx.runQuery(internal.googleCalendar.getMyToken, {});
+    const calendarId = myToken?.calendarId ?? "primary";
+    const reminderMinutes = myToken?.reminderMinutes;
 
-  const body = JSON.stringify(buildEventBody(session));
+  const body = JSON.stringify(buildEventBody(session, reminderMinutes));
   const headers = {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",

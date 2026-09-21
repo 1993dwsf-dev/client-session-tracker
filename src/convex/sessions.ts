@@ -46,6 +46,7 @@ export const create = mutation({
     paid: v.number(),
     status: sessionStatusValidator,
     notes: v.optional(v.string()),
+    notifyClient: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -71,6 +72,7 @@ export const create = mutation({
       paid: Math.max(0, args.paid),
       status: args.status,
       notes: cleanText(args.notes),
+      notifyClient: args.notifyClient,
       createdAt: Date.now(),
     });
   },
@@ -89,6 +91,7 @@ export const update = mutation({
     paid: v.number(),
     status: sessionStatusValidator,
     notes: v.optional(v.string()),
+    notifyClient: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -118,6 +121,7 @@ export const update = mutation({
       paid: Math.max(0, args.paid),
       status: args.status,
       notes: cleanText(args.notes),
+      notifyClient: args.notifyClient,
     });
   },
 });

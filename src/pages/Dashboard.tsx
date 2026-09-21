@@ -16,6 +16,7 @@ import { SheetClients } from "@/components/spreadsheet/SheetClients";
 import { SheetSessions } from "@/components/spreadsheet/SheetSessions";
 import { SheetSummary } from "@/components/spreadsheet/SheetSummary";
 import { GoogleMenu } from "@/components/spreadsheet/GoogleMenu";
+import { AlertsBell } from "@/components/spreadsheet/AlertsBell";
 import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/convex/_generated/api";
 import { formatBRL, type SessionWithClient } from "@/lib/sessions";
@@ -96,7 +97,8 @@ export default function Dashboard() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <AlertsBell />
             <GoogleMenu />
             <div className="hidden items-center gap-2 sm:flex">
               <Avatar className="size-8 border border-border/70">

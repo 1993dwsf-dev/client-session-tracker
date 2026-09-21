@@ -22,6 +22,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { api } from "@/convex/_generated/api";
 
+const REMINDER_CHOICES = [
+  { value: 0, label: "No horário" },
+  { value: 10, label: "10 min antes" },
+  { value: 30, label: "30 min antes" },
+  { value: 60, label: "1 hora antes" },
+  { value: 120, label: "2 horas antes" },
+  { value: 1440, label: "1 dia antes" },
+  { value: 2880, label: "2 dias antes" },
+] as const;
+
 export function GoogleMenu() {
   const googleStatus = useQuery(api.googleCalendar.status);
   const startConnect = useMutation(api.googleCalendar.startConnect);
@@ -29,6 +39,7 @@ export function GoogleMenu() {
   const listCalendars = useAction(api.googleCalendar.listCalendars);
   const syncAll = useAction(api.googleCalendar.syncAll);
   const pickCalendar = useMutation(api.googleCalendar.setCalendarId);
+  const saveReminder = useMutation(api.googleCalendar.setReminderMinutes);
 
   const [calendars, setCalendars] = useState<
     { id: string; summary: string }[]
@@ -114,6 +125,21 @@ export function GoogleMenu() {
     }
   };
 
+  const handlePickReminder = async (minutes: number) => {
+    try {
+      await saveReminder({ minutes });
+      toast.success(
+        minutes === 0
+          ? "Avisos no horário da sessão."
+          : `Aviso ${REMINDER_CHOICES.find((r) => r.value === minutes)?.label.toLowerCase()}.`,
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Não foi possível salvar.",
+      );
+    }
+  };
+
   const handlePickCalendar = async (calendarId: string) => {
     try {
       await pickCalendar({ calendarId });
@@ -170,8 +196,30 @@ export function GoogleMenu() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+              Aviso antes de cada sessão
+            </DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={String(googleStatus?.reminderMinutes ?? 60)}
+              onValueChange={(v) => void handlePickReminder(Number(v))}
+            >
+              {REMINDER_CHOICES.map((choice) => (
+                <DropdownMenuRadioItem
+                  key={choice.value}
+                  value={String(choice.value)}
+                  className="cursor-pointer text-xs"
+                >
+                  {choice.label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
               Agenda de destino
             </DropdownMenuLabel>
+            <p className="px-2 pb-1.5 text-[10px] text-muted-foreground">
+              O lembrete é gravado no evento ao sincronizar — sincronize
+              novamente para aplicar em eventos existentes.
+            </p>
             {loadingCalendars ? (
               <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
                 <Loader2 className="size-3 animate-spin" /> Carregando…

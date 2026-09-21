@@ -52,6 +52,7 @@ const schema = defineSchema(
       refreshToken: v.optional(v.string()),
       expiresAt: v.number(), // access token expiry (ms)
       calendarId: v.optional(v.string()), // user-selected target calendar
+      reminderMinutes: v.optional(v.number()), // Google pop-up alert before each session
       connectedAt: v.number(),
     }).index("by_user", ["userId"]),
 
@@ -85,6 +86,7 @@ const schema = defineSchema(
       status: sessionStatusValidator,
       notes: v.optional(v.string()),
       googleEventId: v.optional(v.string()), // linked Google Calendar event
+      notifyClient: v.optional(v.boolean()), // flag to alert the client about this session
       createdAt: v.number(),
     })
       .index("by_user", ["userId"])

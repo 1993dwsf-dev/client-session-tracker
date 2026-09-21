@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -82,6 +83,7 @@ interface SessionFormValues {
   price: string;
   paid: string;
   status: SessionStatus;
+  notifyClient: boolean;
 }
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -96,6 +98,7 @@ const emptyForm = (): SessionFormValues => ({
   price: "",
   paid: "",
   status: "orcamento",
+  notifyClient: false,
 });
 
 export function SheetSessions({
@@ -143,6 +146,7 @@ export function SheetSessions({
       price: String(session.price),
       paid: String(session.paid),
       status: session.status,
+      notifyClient: session.notifyClient ?? false,
     });
     setDialogOpen(true);
   };
@@ -170,13 +174,20 @@ export function SheetSessions({
         paid: parseMoney(form.paid),
         status: form.status,
         notes: undefined,
+        notifyClient: form.notifyClient,
       };
       if (editing) {
         await updateSession({ id: editing._id, ...payload });
-        toast.success("Sessão atualizada.");
+        toast.success(
+          "Sessão atualizada. Use o botão de agenda para atualizar o evento no Google Calendar.",
+        );
       } else {
         await createSession(payload);
-        toast.success("Sessão criada.");
+        toast.success(
+          form.notifyClient
+            ? "Sessão criada — o aviso para o cliente entra na agenda ao sincronizar."
+            : "Sessão criada.",
+        );
       }
       setDialogOpen(false);
     } catch (error) {
@@ -544,6 +555,25 @@ export function SheetSessions({
                 placeholder="Estúdio, endereço…"
               />
             </div>
+            <label
+              htmlFor="ss-notify"
+              className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5 transition-colors hover:bg-accent/40"
+            >
+              <Checkbox
+                id="ss-notify"
+                checked={form.notifyClient}
+                onCheckedChange={(checked) =>
+                  setForm({ ...form, notifyClient: checked === true })
+                }
+              />
+              <span className="text-sm leading-tight">
+                <span className="font-medium">Avisar o cliente</span>
+                <span className="block text-xs text-muted-foreground">
+                  O lembrete aparece na agenda e no painel de avisos com o
+                  WhatsApp do cliente.
+                </span>
+              </span>
+            </label>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="ss-price">Valor (R$) *</Label>
