@@ -45,6 +45,24 @@ const schema = defineSchema(
       role: v.optional(roleValidator), // role of the user. do not remove
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
+    // Google Calendar OAuth tokens (one connected account per photographer).
+    googleTokens: defineTable({
+      userId: v.id("users"),
+      accessToken: v.string(),
+      refreshToken: v.optional(v.string()),
+      expiresAt: v.number(), // access token expiry (ms)
+      calendarId: v.optional(v.string()), // user-selected target calendar
+      connectedAt: v.number(),
+    }).index("by_user", ["userId"]),
+
+    // Short-lived state values for the OAuth CSRF check (bound to the user
+    // that started the flow, since Google's redirect carries no session).
+    googleAuthStates: defineTable({
+      state: v.string(),
+      userId: v.id("users"),
+      createdAt: v.number(),
+    }).index("by_state", ["state"]),
+
     clients: defineTable({
       userId: v.id("users"),
       name: v.string(),
@@ -66,6 +84,7 @@ const schema = defineSchema(
       paid: v.number(),
       status: sessionStatusValidator,
       notes: v.optional(v.string()),
+      googleEventId: v.optional(v.string()), // linked Google Calendar event
       createdAt: v.number(),
     })
       .index("by_user", ["userId"])

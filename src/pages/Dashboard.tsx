@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
+import { useLocation, useNavigate } from "react-router";
+import { toast } from "sonner";
 import {
   CalendarDays,
   ChartNoAxesColumn,
@@ -13,17 +15,36 @@ import { FormulaBar, SheetTabs } from "@/components/spreadsheet/Workbook";
 import { SheetClients } from "@/components/spreadsheet/SheetClients";
 import { SheetSessions } from "@/components/spreadsheet/SheetSessions";
 import { SheetSummary } from "@/components/spreadsheet/SheetSummary";
+import { GoogleMenu } from "@/components/spreadsheet/GoogleMenu";
 import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/convex/_generated/api";
 import { formatBRL, type SessionWithClient } from "@/lib/sessions";
-import { useNavigate } from "react-router";
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const clients = useQuery(api.clients.list);
   const rawSessions = useQuery(api.sessions.list);
+  const googleStatus = useQuery(api.googleCalendar.status);
+
+  // OAuth return: toast the connection result once per redirect.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const google = params.get("google");
+    if (google === "connected") {
+      toast.success("Google Calendar conectado com sucesso!");
+    } else if (google === "error") {
+      toast.error("Não foi possível conectar o Google Calendar. Tente novamente.");
+    }
+    if (google) {
+      params.delete("google");
+      navigate({ pathname: location.pathname, search: params.toString() }, {
+        replace: true,
+      });
+    }
+  }, [location.search, location.pathname, navigate]);
 
   const [activeSheet, setActiveSheet] = useState("resumo");
   const [activeCell, setActiveCell] = useState("A1");
@@ -76,6 +97,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <GoogleMenu />
             <div className="hidden items-center gap-2 sm:flex">
               <Avatar className="size-8 border border-border/70">
                 <AvatarFallback className="bg-accent text-xs font-semibold text-accent-foreground">

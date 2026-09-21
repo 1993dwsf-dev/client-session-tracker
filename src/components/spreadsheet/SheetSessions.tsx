@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { CalendarDays, ChevronDown, Download, Pencil, Rows3, Trash2 } from "lucide-react";
+import { CalendarDays, CalendarPlus, ChevronDown, Download, Loader2, Pencil, Rows3, Trash2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import {
@@ -111,6 +111,11 @@ export function SheetSessions({
   const updateSession = useMutation(api.sessions.update);
   const updateStatus = useMutation(api.sessions.updateStatus);
   const deleteSession = useMutation(api.sessions.remove);
+  const syncSession = useAction(api.googleCalendar.syncSession);
+  const googleStatus = useQuery(api.googleCalendar.status);
+
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const googleConnected = googleStatus?.connected === true;
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SessionWithClient | null>(null);
@@ -228,6 +233,30 @@ export function SheetSessions({
       }),
     ]);
     toast.success("Sessões exportadas em CSV.");
+  };
+
+  const handleSyncToCalendar = async (session: SessionWithClient) => {
+    if (!googleConnected) {
+      toast.error(
+        "Conecte sua conta do Google primeiro (menu \"Google Agenda\" no topo).",
+      );
+      return;
+    }
+    setSyncingId(session._id);
+    try {
+      await syncSession({ sessionId: session._id });
+      toast.success(
+        `"${session.title}" sincronizada com o Google Calendar.`,
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível sincronizar a sessão.",
+      );
+    } finally {
+      setSyncingId(null);
+    }
   };
 
   const confirmDelete = async () => {
@@ -366,6 +395,26 @@ export function SheetSessions({
                 </SheetCell>
                 <SheetCell align="center">
                   <div className="flex items-center justify-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => void handleSyncToCalendar(session)}
+                      disabled={syncingId === session._id}
+                      className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+                      title={
+                        session.googleEventId
+                          ? `Atualizar "${session.title}" no Google Calendar`
+                          : `Enviar "${session.title}" ao Google Calendar`
+                      }
+                    >
+                      {syncingId === session._id ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <CalendarPlus className="size-3.5" />
+                      )}
+                      <span className="sr-only">
+                        Enviar {session.title} ao Google Calendar
+                      </span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => openEdit(session)}
