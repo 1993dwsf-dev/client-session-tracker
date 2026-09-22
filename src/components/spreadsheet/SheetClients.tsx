@@ -53,7 +53,7 @@ export function SheetClients({
   const createClient = useMutation(api.clients.create);
   const updateClient = useMutation(api.clients.update);
   const deleteClient = useMutation(api.clients.remove);
-  const [activeCell, setActiveCell] = useState<string>("B2");
+  const [, setActiveCell] = useState<string>("B2");
   const [deleting, setDeleting] = useState<Doc<"clients"> | null>(null);
 
   const commitField = async (

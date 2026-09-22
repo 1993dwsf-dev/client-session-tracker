@@ -28,7 +28,6 @@ export default function Dashboard() {
 
   const clients = useQuery(api.clients.list);
   const rawSessions = useQuery(api.sessions.list);
-  const googleStatus = useQuery(api.googleCalendar.status);
 
   // OAuth return: toast the connection result once per redirect.
   useEffect(() => {
@@ -51,7 +50,10 @@ export default function Dashboard() {
   const [activeCell, setActiveCell] = useState("A1");
   const [activeValue, setActiveValue] = useState<string | undefined>(undefined);
 
-  const sessions: SessionWithClient[] = rawSessions ?? [];
+  const sessions: SessionWithClient[] = useMemo(
+    () => rawSessions ?? [],
+    [rawSessions],
+  );
   const loading = clients === undefined || rawSessions === undefined;
 
   const totals = useMemo(() => {

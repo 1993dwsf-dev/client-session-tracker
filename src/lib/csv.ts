@@ -2,7 +2,7 @@ const BOM = "\uFEFF";
 
 export type CsvCell = string | number | null | undefined;
 
-function formatCell(cell: CsvCell): string {
+export function formatCell(cell: CsvCell): string {
   if (cell == null) return "";
   const value = String(cell);
   if (/[";\n\r]/.test(value)) {

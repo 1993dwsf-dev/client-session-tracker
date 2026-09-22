@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { CalendarDays, CalendarPlus, ChevronDown, Download, Loader2, Pencil, Rows3, Trash2 } from "lucide-react";
+import { CalendarDays, CalendarPlus, ChevronDown, Download, Loader2, Pencil, Trash2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import {

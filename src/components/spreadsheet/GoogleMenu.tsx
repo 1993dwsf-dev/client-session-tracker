@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import {
@@ -50,20 +50,7 @@ export function GoogleMenu() {
 
   const connected = googleStatus?.connected === true;
 
-  // Load the calendar list once when the menu is first used while connected.
-  useEffect(() => {
-    if (connected && !loadedOnce.current) {
-      loadedOnce.current = true;
-      void loadCalendars();
-    }
-    if (!connected) {
-      loadedOnce.current = false;
-      setCalendars([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connected]);
-
-  const loadCalendars = async () => {
+  const loadCalendars = useCallback(async () => {
     setLoadingCalendars(true);
     try {
       const items = await listCalendars({});
@@ -77,7 +64,18 @@ export function GoogleMenu() {
     } finally {
       setLoadingCalendars(false);
     }
-  };
+  }, [listCalendars]);
+
+  // Load the calendar list once when the menu is first used while connected.
+  useEffect(() => {
+    if (connected && !loadedOnce.current) {
+      loadedOnce.current = true;
+      void loadCalendars();
+    }
+    if (!connected) {
+      loadedOnce.current = false;
+    }
+  }, [connected, loadCalendars]);
 
   const handleConnect = async () => {
     try {
