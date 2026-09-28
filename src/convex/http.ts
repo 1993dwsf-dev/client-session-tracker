@@ -20,11 +20,21 @@ http.route({
     const state = url.searchParams.get("state") ?? "";
     const error = url.searchParams.get("error");
 
-    if (error || !code || !state) {
-      return new Response(null, {
+    // The bounce target is a fixed path — never derived from request params —
+    // so the 302 cannot become an open redirect. no-store keeps code+state out
+    // of browser history, bfcache and intermediary caches.
+    const noStore = { "Cache-Control": "no-store" } as const;
+    const redirectTo = (status: "connected" | "error") =>
+      new Response(null, {
         status: 302,
-        headers: { Location: `${url.origin}/dashboard?google=error` },
+        headers: {
+          Location: `${url.origin}/dashboard?google=${status}`,
+          ...noStore,
+        },
       });
+
+    if (error || !code || !state) {
+      return redirectTo("error");
     }
 
     let ok = false;
@@ -32,19 +42,13 @@ http.route({
       const result = await ctx.runAction(api.googleCalendar.oauthCallback, {
         code,
         state,
-        origin: url.origin,
       });
       ok = result.ok;
     } catch (err) {
       console.error("[googleCalendar] callback failed:", err);
     }
 
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: `${url.origin}/dashboard?google=${ok ? "connected" : "error"}`,
-      },
-    });
+    return redirectTo(ok ? "connected" : "error");
   }),
 });
 

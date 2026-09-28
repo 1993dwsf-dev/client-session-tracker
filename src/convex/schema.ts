@@ -58,11 +58,15 @@ const schema = defineSchema(
 
     // Short-lived state values for the OAuth CSRF check (bound to the user
     // that started the flow, since Google's redirect carries no session).
+    // by_user lets startConnect keep a single in-flight state per user, so the
+    // table cannot be flooded by repeated calls.
     googleAuthStates: defineTable({
       state: v.string(),
       userId: v.id("users"),
       createdAt: v.number(),
-    }).index("by_state", ["state"]),
+    })
+      .index("by_state", ["state"])
+      .index("by_user", ["userId"]),
 
     clients: defineTable({
       userId: v.id("users"),

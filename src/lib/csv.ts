@@ -4,11 +4,19 @@ export type CsvCell = string | number | null | undefined;
 
 export function formatCell(cell: CsvCell): string {
   if (cell == null) return "";
+  // Formula-injection guard (a.k.a. CSV injection): a client name like
+  // "=HYPERLINK(...)" would execute as a formula when the export is opened in
+  // Excel/LibreOffice/Google Sheets. The check runs on the RAW value (quoting
+  // is only a transport escape — after the spreadsheet parses the CSV, the
+  // cell still starts with "=" and would execute). Prefix with an apostrophe
+  // to force text — except for plain numbers, which must keep their sign.
   const value = String(cell);
-  if (/[";\n\r]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
+  const dangerous = /^[=+@\t\r]/.test(value) || /^-\D/.test(value);
+  const safe = dangerous ? `'${value}` : value;
+  const quoted = /[";\n\r]/.test(safe)
+    ? `"${safe.replace(/"/g, '""')}"`
+    : safe;
+  return quoted;
 }
 
 /** Formats a number as "1.234,56" so Excel pt-BR parses it as a number. */

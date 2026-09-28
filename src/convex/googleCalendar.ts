@@ -31,13 +31,15 @@ function redirectUri(): string {
   return `${siteUrl}/api/google/callback`;
 }
 
-/** crypto.randomUUID is unavailable inside Convex mutations — use Math.random. */
+/** crypto.randomUUID is unavailable inside Convex mutations — use the
+ *  cryptographic CSPRNG instead. NEVER use Math.random for security tokens:
+ *  its output is predictable, so an attacker could guess OAuth state values. */
 function randomId(): string {
-  let out = "";
-  for (let i = 0; i < 32; i += 1) {
-    out += Math.floor(Math.random() * 16).toString(16);
-  }
-  return out;
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /** Current token row for the signed-in user (null when not connected). */
@@ -85,6 +87,16 @@ export const startConnect = mutation({
       );
     }
 
+    // Keep a single in-flight state per user: replace any previous one and
+    // drop stale rows, so repeated clicks cannot flood the table.
+    const previous = await ctx.db
+      .query("googleAuthStates")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const row of previous) {
+      await ctx.db.delete(row._id);
+    }
+
     const state = randomId();
     await ctx.db.insert("googleAuthStates", {
       state,
@@ -105,8 +117,10 @@ export const startConnect = mutation({
   },
 });
 
-/** Consumes one state value (single-use CSRF check) and returns its user. */
-export const consumeAuthState = mutation({
+/** Consumes one state value (single-use CSRF check) and returns its user.
+ *  INTERNAL ONLY: making this a public mutation would let any signed-in client
+ *  claim a victim's in-flight OAuth state by guessing it (auth binding). */
+export const consumeAuthState = internalMutation({
   args: { state: v.string() },
   handler: async (ctx, args) => {
     const row = await ctx.db
@@ -176,11 +190,12 @@ export const storeRefreshedToken = internalMutation({
 
 /** Public HTTP callback: exchanges the code, validates state, saves tokens. */
 export const oauthCallback = action({
-  args: { code: v.string(), state: v.string(), origin: v.string() },
+  args: { code: v.string(), state: v.string() },
   handler: async (ctx, args) => {
-    const userId = await ctx.runMutation(api.googleCalendar.consumeAuthState, {
-      state: args.state,
-    });
+    const userId = await ctx.runMutation(
+      internal.googleCalendar.consumeAuthState,
+      { state: args.state },
+    );
     if (!userId) {
       return { ok: false as const, reason: "state" as const };
     }
