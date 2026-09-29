@@ -263,16 +263,40 @@ export const setReminderMinutes = mutation({
   },
 });
 
-export const disconnect = mutation({
+/** Deletes the stored token row (internal only). */
+export const deleteTokenRow = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query("googleTokens")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .unique();
+    if (row) await ctx.db.delete(row._id);
+  },
+});
+
+/** Disconnects the Google account. Revokes the refresh token at Google first
+ *  (otherwise it would stay valid server-side even after we delete our copy),
+ *  then removes the local credentials. Revocation is best-effort. */
+export const disconnect = action({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Não autenticado.");
-    const row = await ctx.db
-      .query("googleTokens")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
-    if (row) await ctx.db.delete(row._id);
+    const row = await ctx.runQuery(internal.googleCalendar.getMyToken, {});
+    const tokenToRevoke = row?.refreshToken ?? row?.accessToken;
+    if (tokenToRevoke) {
+      try {
+        await fetch("https://oauth2.googleapis.com/revoke", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ token: tokenToRevoke }),
+        });
+      } catch (err) {
+        console.error("[googleCalendar] revoke failed:", err);
+      }
+    }
+    await ctx.runMutation(internal.googleCalendar.deleteTokenRow, { userId });
   },
 });
 

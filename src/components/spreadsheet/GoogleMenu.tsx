@@ -35,7 +35,7 @@ const REMINDER_CHOICES = [
 export function GoogleMenu() {
   const googleStatus = useQuery(api.googleCalendar.status);
   const startConnect = useMutation(api.googleCalendar.startConnect);
-  const disconnect = useMutation(api.googleCalendar.disconnect);
+  const disconnect = useAction(api.googleCalendar.disconnect);
   const listCalendars = useAction(api.googleCalendar.listCalendars);
   const syncAll = useAction(api.googleCalendar.syncAll);
   const pickCalendar = useMutation(api.googleCalendar.setCalendarId);
