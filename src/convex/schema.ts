@@ -47,7 +47,12 @@ const schema = defineSchema(
       phoneVerificationTime: v.optional(v.number()),
       isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
 
-      role: v.optional(roleValidator), // role of the user. do not remove
+      // Deliberately a plain string, not roleValidator: nothing in this app
+      // writes `role`, so the only writer is the platform. With schema
+      // validation on, a platform value outside admin|user|member would make
+      // every read of `users` throw — and with it, sign-in. ROLES/roleValidator
+      // stay exported as the intended vocabulary for app code that needs it.
+      role: v.optional(v.string()), // role of the user. do not remove
     })
       .index("email", ["email"]) // index for the email. do not remove or modify
       .index("phone", ["phone"]),
