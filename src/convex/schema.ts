@@ -40,10 +40,17 @@ const schema = defineSchema(
       image: v.optional(v.string()), // image of the user. do not remove
       email: v.optional(v.string()), // email of the user. do not remove
       emailVerificationTime: v.optional(v.number()), // email verification time. do not remove
+      // Phone fields are declared by @convex-dev/auth's own users table. The
+      // template dropped them, which is harmless while schemaValidation is off
+      // but makes any user document carrying them unreadable once it is on.
+      phone: v.optional(v.string()),
+      phoneVerificationTime: v.optional(v.number()),
       isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
 
       role: v.optional(roleValidator), // role of the user. do not remove
-    }).index("email", ["email"]), // index for the email. do not remove or modify
+    })
+      .index("email", ["email"]) // index for the email. do not remove or modify
+      .index("phone", ["phone"]),
 
     // Google Calendar OAuth tokens (one connected account per photographer).
     googleTokens: defineTable({
@@ -97,7 +104,7 @@ const schema = defineSchema(
       .index("by_client", ["clientId"]),
   },
   {
-    schemaValidation: false,
+    schemaValidation: true,
   },
 );
 
