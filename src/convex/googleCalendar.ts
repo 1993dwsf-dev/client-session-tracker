@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import {
   action,
+  internalAction,
   internalMutation,
   internalQuery,
   mutation,
@@ -188,8 +189,11 @@ export const storeRefreshedToken = internalMutation({
   },
 });
 
-/** Public HTTP callback: exchanges the code, validates state, saves tokens. */
-export const oauthCallback = action({
+/** HTTP callback: exchanges the code, validates state, saves tokens.
+ *  INTERNAL ONLY: the public Convex API can invoke any public action, and this
+ *  one has no session of its own (Google's redirect carries no auth header) —
+ *  it trusts the state row alone. It exists solely for the http.route below. */
+export const oauthCallback = internalAction({
   args: { code: v.string(), state: v.string() },
   handler: async (ctx, args) => {
     const userId = await ctx.runMutation(

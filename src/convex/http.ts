@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { api } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { auth } from "./auth";
 
 const http = httpRouter();
@@ -39,10 +39,13 @@ http.route({
 
     let ok = false;
     try {
-      const result = await ctx.runAction(api.googleCalendar.oauthCallback, {
-        code,
-        state,
-      });
+      const result = await ctx.runAction(
+        internal.googleCalendar.oauthCallback,
+        {
+          code,
+          state,
+        },
+      );
       ok = result.ok;
     } catch (err) {
       console.error("[googleCalendar] callback failed:", err);

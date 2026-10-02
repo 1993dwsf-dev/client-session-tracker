@@ -23,11 +23,17 @@ interface AuthProps {
   redirectAfterAuth?: string;
 }
 
+// Allowlist for post-auth redirects: a single-slash relative path only.
+// A bare startsWith("/") check is not enough — the URL parser treats "\" as "/"
+// for special schemes ("/\evil.com" => "//evil.com") and strips tab/newline
+// before parsing ("/\t/evil.com" => "//evil.com"), both of which escape origin.
+const SAFE_RETURN_TO = /^\/(?!\/)[^\s\\]*$/;
+
 function resolveRedirectAfterAuth(
   returnTo: string | null,
   fallback = "/dashboard",
 ) {
-  if (returnTo?.startsWith("/") && !returnTo.startsWith("//")) {
+  if (returnTo && SAFE_RETURN_TO.test(returnTo)) {
     return returnTo;
   }
   return fallback;
