@@ -47,6 +47,14 @@ bunx convex import --replace-all backups/fotoflow-YYYYMMDD-HHMM.zip
 Recomendação: rodar a exportação diária e manter ao menos 7 dias de retenção em
 armazenamento externo ao deployment (S3, Google Drive ou disco local).
 
+O script `scripts/backup.sh` automatiza tudo isso (export + rotação + upload
+offsite opcional via rclone). Agende no cron da máquina que tiver as
+credenciais do projeto:
+
+```bash
+0 3 * * * cd /caminho/do/projeto && ./scripts/backup.sh --prod >> backups/backup.log 2>&1
+```
+
 ## 3. Plano de recuperação
 
 - **Perda de dados (deleção acidental):** restaurar o último snapshot com
@@ -85,7 +93,22 @@ interface de tela para a trilha ainda — se necessário, renderizar `listMine`.
 ## 6. Headers de segurança
 
 CSP/HSTS/X-Frame-Options são definidos pela camada de hospedagem (proxy/CDN),
-não pelo Vite. Configure no host que serve o frontend. Exemplo de CSP mínima:
+não pelo Vite. Configs prontas já estão no repositório:
+
+- `public/_headers` — formato Netlify/Cloudflare Pages, copiado pelo Vite para
+  a raiz do build. Basta fazer o deploy.
+- `vercel.json` — mesmos headers no formato da Vercel.
+- `index.html` — `<meta name="referrer">` cobre a política de referrer mesmo
+  sem headers no host.
+- `src/convex/http.ts` — o callback OAuth já envia `no-store`, `nosniff` e
+  `Referrer-Policy` nas próprias respostas.
+
+A CSP mantém `'unsafe-inline'` em script/style para o tooling do Vite e o
+Tailwind seguirem funcionando; o endurecimento efetivo está em `connect-src`,
+`object-src`, `base-uri` e `frame-ancestors`. Endureça `script-src` quando o
+build não precisar mais do preamble inline de dev.
+
+Referência (caso o host seja outro):
 
 ```
 Content-Security-Policy:
@@ -134,7 +157,35 @@ bun test           # Vitest, arquivos src/**/*.test.ts
 Cobrem a lógica pura de `src/lib` (guard de formula-injection do CSV, parsing de
 valores, cálculo de saldo). Adicione casos ao mexer nessas funções.
 
-## 10. LGPD, Privacidade e Termos
+## 10. Teste mobile (QA manual)
+
+Não há device real conectado a este ambiente, então a verificação é manual.
+Checklist por fluxo (landing, `/auth`, dashboard, planilhas, modais) em
+**iPhone SE (375px)** e **Pixel 7 (412px)**, ou DevTools em modo device:
+
+- [ ] Layout sem scroll horizontal; tabelas rolam dentro do container.
+- [ ] Teclado numérico/emails abre o tipo certo (`inputMode`), sem zoom
+      automático (font-size >= 16px nos inputs).
+- [ ] Botões/linhas com altura de toque >= 44px e `cursor-pointer`.
+- [ ] Modais abrem com scroll interno e fecham pelo overlay/gesto.
+- [ ] Toasts aparecem acima da safe-area (notch).
+- [ ] Login por OTP completo no celular, incluindo o retorno do OAuth do
+      Google Calendar no navegador mobile.
+- [ ] Dark mode e modo claro sem contraste quebrado.
+
+## 11. Teste de carga básico
+
+```bash
+bun scripts/load-test.ts https://seu-app.exemplo.com/ 15 20
+#      alvo                         duracao concorrencia
+```
+
+Sem dependências: mede rps e percentis (p50/p90/p95/p99) e sai com código 2 se
+houver 5xx/falhas de rede. Rode só contra staging ou a sua produção, em horário
+de baixo tráfego. Critério de aceite sugerido: p95 < 1s e zero 5xx com
+concorrência 20 por 60s.
+
+## 12. LGPD, Privacidade e Termos
 
 Páginas públicas: `/privacidade` e `/termos`, linkadas no rodapé da landing.
 **Ação pendente:** revisar com apoio jurídico e preencher os dados do

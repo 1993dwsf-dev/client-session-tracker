@@ -22,14 +22,19 @@ http.route({
 
     // The bounce target is a fixed path — never derived from request params —
     // so the 302 cannot become an open redirect. no-store keeps code+state out
-    // of browser history, bfcache and intermediary caches.
-    const noStore = { "Cache-Control": "no-store" } as const;
+    // of browser history, bfcache and intermediary caches; the other headers
+    // apply baseline hardening to the only endpoint this app serves itself.
+    const headers = {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+    } as const;
     const redirectTo = (status: "connected" | "error") =>
       new Response(null, {
         status: 302,
         headers: {
           Location: `${url.origin}/dashboard?google=${status}`,
-          ...noStore,
+          ...headers,
         },
       });
 
