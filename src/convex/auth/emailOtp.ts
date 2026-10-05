@@ -40,7 +40,17 @@ export const emailOtp = Email({
         },
       );
     } catch (error) {
-      throw new Error(JSON.stringify(error));
+      // Log server-side only. Never rethrow the raw error: an axios error
+      // carries `config.headers` — including the x-api-key — and the thrown
+      // message is relayed back to the client by @convex-dev/auth's signIn,
+      // which would expose the key and internal request details in the UI.
+      console.error(
+        "[emailOtp] send verification code failed:",
+        error instanceof Error ? error.message : error,
+      );
+      throw new Error(
+        "Não foi possível enviar o código de acesso. Tente novamente em instantes.",
+      );
     }
   },
 });
