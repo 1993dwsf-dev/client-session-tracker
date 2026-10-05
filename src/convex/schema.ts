@@ -80,6 +80,24 @@ const schema = defineSchema(
       .index("by_state", ["state"])
       .index("by_user", ["userId"]),
 
+    // Fixed-window send counters for the OTP email provider (see
+    // convex/otpRateLimit.ts). Keys are `email:<addr>` and `global`.
+    otpSendRateLimits: defineTable({
+      key: v.string(),
+      windowStart: v.number(),
+      count: v.number(),
+    }).index("by_key", ["key"]),
+
+    // Who changed what, written in the same transaction as the change.
+    auditLogs: defineTable({
+      userId: v.id("users"),
+      action: v.string(), // e.g. "client.create", "session.delete"
+      entity: v.string(), // "clients" | "sessions"
+      entityId: v.string(),
+      summary: v.optional(v.string()), // name/title at time of change
+      at: v.number(),
+    }).index("by_user", ["userId"]),
+
     clients: defineTable({
       userId: v.id("users"),
       name: v.string(),

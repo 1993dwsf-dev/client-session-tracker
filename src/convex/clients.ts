@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { logAudit } from "./auditLogs";
 import { mutation, query } from "./_generated/server";
 
 export const list = query({
@@ -30,7 +31,7 @@ export const create = mutation({
     const name = args.name.trim();
     if (!name) throw new Error("O nome do cliente é obrigatório.");
 
-    return await ctx.db.insert("clients", {
+    const id = await ctx.db.insert("clients", {
       userId,
       name,
       email: args.email?.trim() || undefined,
@@ -38,6 +39,14 @@ export const create = mutation({
       notes: args.notes?.trim() || undefined,
       createdAt: Date.now(),
     });
+    await logAudit(ctx, {
+      userId,
+      action: "client.create",
+      entity: "clients",
+      entityId: id,
+      summary: name,
+    });
+    return id;
   },
 });
 
@@ -67,6 +76,13 @@ export const update = mutation({
       phone: args.phone?.trim() || undefined,
       notes: args.notes?.trim() || undefined,
     });
+    await logAudit(ctx, {
+      userId,
+      action: "client.update",
+      entity: "clients",
+      entityId: args.id,
+      summary: name,
+    });
   },
 });
 
@@ -91,5 +107,12 @@ export const remove = mutation({
     }
 
     await ctx.db.delete(args.id);
+    await logAudit(ctx, {
+      userId,
+      action: "client.delete",
+      entity: "clients",
+      entityId: args.id,
+      summary: client.name,
+    });
   },
 });

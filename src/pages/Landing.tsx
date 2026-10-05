@@ -328,7 +328,23 @@ export default function Landing() {
               </span>
               <span className="font-medium text-foreground">Fotoflow</span>
             </div>
-            <p>Controle de clientes e sessões para fotógrafos.</p>
+            <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-5">
+              <p>Controle de clientes e sessões para fotógrafos.</p>
+              <nav className="flex items-center gap-4">
+                <a
+                  href="/privacidade"
+                  className="transition-colors hover:text-foreground"
+                >
+                  Privacidade
+                </a>
+                <a
+                  href="/termos"
+                  className="transition-colors hover:text-foreground"
+                >
+                  Termos
+                </a>
+              </nav>
+            </div>
           </div>
         </footer>
       </div>

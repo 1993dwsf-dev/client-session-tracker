@@ -1,3 +1,19 @@
+# Fotoflow
+
+Painel de gestão de clientes e sessões para fotógrafos: cadastro de clientes,
+agenda de ensaios, orçamentos, pagamentos e status por sessão, com exportação
+em CSV e sincronização opcional com o Google Calendar.
+
+- Rotas: `/` (landing), `/auth` (login por código), `/dashboard` (protegida),
+  `/privacidade` e `/termos`.
+- Backend: Convex (`src/convex`). Dados isolados por `userId`.
+- Testes: `bun test` (Vitest).
+
+Operação, backup, recuperação, headers de segurança, rate limiting e LGPD:
+ver [`docs/OPERATIONS.md`](./docs/OPERATIONS.md).
+
+---
+
 ## Overview
 
 This project uses the following tech stack:

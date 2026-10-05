@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { logAudit } from "./auditLogs";
 import { mutation, query } from "./_generated/server";
 import { sessionStatusValidator } from "./schema";
 
@@ -60,7 +61,7 @@ export const create = mutation({
     const title = args.title.trim();
     if (!title) throw new Error("Dê um nome à sessão.");
 
-    return await ctx.db.insert("sessions", {
+    const id = await ctx.db.insert("sessions", {
       userId,
       clientId: args.clientId,
       title,
@@ -75,6 +76,14 @@ export const create = mutation({
       notifyClient: args.notifyClient,
       createdAt: Date.now(),
     });
+    await logAudit(ctx, {
+      userId,
+      action: "session.create",
+      entity: "sessions",
+      entityId: id,
+      summary: title,
+    });
+    return id;
   },
 });
 
@@ -123,6 +132,13 @@ export const update = mutation({
       notes: cleanText(args.notes),
       notifyClient: args.notifyClient,
     });
+    await logAudit(ctx, {
+      userId,
+      action: "session.update",
+      entity: "sessions",
+      entityId: args.id,
+      summary: title,
+    });
   },
 });
 
@@ -141,6 +157,13 @@ export const updateStatus = mutation({
     }
 
     await ctx.db.patch(args.id, { status: args.status });
+    await logAudit(ctx, {
+      userId,
+      action: "session.update_status",
+      entity: "sessions",
+      entityId: args.id,
+      summary: args.status,
+    });
   },
 });
 
@@ -156,5 +179,12 @@ export const remove = mutation({
     }
 
     await ctx.db.delete(args.id);
+    await logAudit(ctx, {
+      userId,
+      action: "session.delete",
+      entity: "sessions",
+      entityId: args.id,
+      summary: session.title,
+    });
   },
 });
