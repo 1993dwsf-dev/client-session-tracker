@@ -65,6 +65,10 @@ const schema = defineSchema(
       expiresAt: v.number(), // access token expiry (ms)
       calendarId: v.optional(v.string()), // user-selected target calendar
       reminderMinutes: v.optional(v.number()), // Google pop-up alert before each session
+
+      // Fuso IANA escolhido para os eventos do Google Calendar.
+      timeZone: v.optional(v.string()),
+
       connectedAt: v.number(),
     }).index("by_user", ["userId"]),
 
@@ -86,7 +90,9 @@ const schema = defineSchema(
       key: v.string(),
       windowStart: v.number(),
       count: v.number(),
-    }).index("by_key", ["key"]),
+    })
+      .index("by_key", ["key"])
+      .index("by_window", ["windowStart"]),
 
     // Who changed what, written in the same transaction as the change.
     auditLogs: defineTable({

@@ -70,3 +70,28 @@ export const consumeOtpSend = internalMutation({
     await consumeWindow(ctx, "global", GLOBAL_WINDOW_MS, GLOBAL_MAX, now);
   },
 });
+
+export const cleanupExpiredOtpSendRateLimits = internalMutation({
+  args: {},
+
+  handler: async (ctx) => {
+    // As janelas de uso da aplicação duram até uma hora.
+    // Manter margem de 24 horas evita remover registros recentes.
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+
+    const rows = await ctx.db
+      .query("otpSendRateLimits")
+      .withIndex("by_window", (q) =>
+        q.lt("windowStart", cutoff),
+      )
+      .take(500);
+
+    for (const row of rows) {
+      await ctx.db.delete(row._id);
+    }
+
+    return {
+      deleted: rows.length,
+    };
+  },
+});

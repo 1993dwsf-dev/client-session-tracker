@@ -115,6 +115,9 @@ export function SheetSessions({
   const updateStatus = useMutation(api.sessions.updateStatus);
   const deleteSession = useMutation(api.sessions.remove);
   const syncSession = useAction(api.googleCalendar.syncSession);
+  const deleteCalendarEvent = useAction(
+    api.googleCalendar.deleteSessionEvent,
+  );
   const googleStatus = useQuery(api.googleCalendar.status);
 
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -127,6 +130,26 @@ export function SheetSessions({
   const [toDelete, setToDelete] = useState<SessionWithClient | null>(null);
 
   const sorted = [...sessions].sort((a, b) => a.date - b.date);
+
+  const [search, setSearch] = useState("");
+
+  const normalizedSearch = search
+    .trim()
+    .toLocaleLowerCase("pt-BR");
+
+  const filteredSessions = sorted.filter((session) => {
+    const searchable = [
+      session.title,
+      session.clientName,
+      session.type ?? "",
+      session.location ?? "",
+      STATUS_META[session.status].label,
+    ]
+      .join(" ")
+      .toLocaleLowerCase("pt-BR");
+
+    return searchable.includes(normalizedSearch);
+  });
 
   const openCreate = () => {
     setEditing(null);
@@ -204,11 +227,45 @@ export function SheetSessions({
     status: SessionStatus,
   ) => {
     try {
-      await updateStatus({ id: session._id, status });
-      toast.success(`Status alterado para "${STATUS_META[status].label}".`);
+      await updateStatus({
+        id: session._id,
+        status,
+      });
+
+      toast.success(
+        `Status alterado para "${STATUS_META[status].label}".`,
+      );
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Não foi possível atualizar.",
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar.",
+      );
+
+      return;
+    }
+
+    if (status !== "cancelada" || !session.googleEventId) {
+      return;
+    }
+
+    if (!googleConnected) {
+      toast.warning(
+        "A sessão foi cancelada, mas o evento do Google Calendar não foi removido. Reconecte a conta para concluir a limpeza.",
+      );
+
+      return;
+    }
+
+    try {
+      await deleteCalendarEvent({
+        sessionId: session._id,
+      });
+
+      toast.success("Evento removido do Google Calendar.");
+    } catch {
+      toast.warning(
+        "A sessão foi cancelada, mas não foi possível remover seu evento do Google Calendar. Tente novamente.",
       );
     }
   };
@@ -272,12 +329,32 @@ export function SheetSessions({
 
   const confirmDelete = async () => {
     if (!toDelete) return;
+
     try {
-      await deleteSession({ id: toDelete._id });
+      if (toDelete.googleEventId) {
+        if (!googleConnected) {
+          toast.error(
+            "Esta sessão possui um evento associado. Reconecte o Google Calendar antes de excluí-la.",
+          );
+
+          return;
+        }
+
+        await deleteCalendarEvent({
+          sessionId: toDelete._id,
+        });
+      }
+
+      await deleteSession({
+        id: toDelete._id,
+      });
+
       toast.success("Sessão removida.");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Não foi possível excluir.",
+        error instanceof Error
+          ? error.message
+          : "Não foi possível excluir a sessão.",
       );
     } finally {
       setToDelete(null);
@@ -292,10 +369,17 @@ export function SheetSessions({
           <CalendarDays className="size-4 text-primary" />
           <span className="text-sm font-medium">Sessões</span>
           <span className="text-xs text-muted-foreground">
-            · {sorted.length} linha(s)
+            · {filteredSessions.length} de {sorted.length} linha(s)
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar sessão..."
+            aria-label="Buscar sessões"
+            className="h-8 w-36 sm:w-52"
+          />
           <Button
             size="sm"
             variant="ghost"
@@ -321,7 +405,7 @@ export function SheetSessions({
       {/* Grid */}
       <div className="min-h-0 flex-1">
         <SheetTable columns={columns}>
-          {sorted.map((session, i) => {
+          {filteredSessions.map((session, i) => {
             const due = Math.max(0, session.price - session.paid);
             const rowNumber = i + 2;
             return (
@@ -567,10 +651,10 @@ export function SheetSessions({
                 }
               />
               <span className="text-sm leading-tight">
-                <span className="font-medium">Avisar o cliente</span>
+                <span className="font-medium">Lembrete para contato com o cliente</span>
                 <span className="block text-xs text-muted-foreground">
-                  O lembrete aparece na agenda e no painel de avisos com o
-                  WhatsApp do cliente.
+                  Adiciona uma indicação à agenda para você confirmar o contato. O Fotoflow
+                  não envia mensagens automaticamente.
                 </span>
               </span>
             </label>

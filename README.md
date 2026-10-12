@@ -7,7 +7,7 @@ em CSV e sincronização opcional com o Google Calendar.
 - Rotas: `/` (landing), `/auth` (login por código), `/dashboard` (protegida),
   `/privacidade` e `/termos`.
 - Backend: Convex (`src/convex`). Dados isolados por `userId`.
-- Testes: `bun test` (Vitest).
+- Testes: `bun run test` (Vitest).
 
 Operação, backup, recuperação, headers de segurança, rate limiting e LGPD:
 ver [`docs/OPERATIONS.md`](./docs/OPERATIONS.md).

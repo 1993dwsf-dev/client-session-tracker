@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import { Download, Rows3, Trash2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   EditableCell,
   SheetCell,
@@ -53,8 +54,33 @@ export function SheetClients({
   const createClient = useMutation(api.clients.create);
   const updateClient = useMutation(api.clients.update);
   const deleteClient = useMutation(api.clients.remove);
+  const deleteCalendarEvent = useAction(
+    api.googleCalendar.deleteSessionEvent,
+  );
+
+  const googleStatus = useQuery(api.googleCalendar.status);
+
   const [, setActiveCell] = useState<string>("B2");
   const [deleting, setDeleting] = useState<Doc<"clients"> | null>(null);
+
+  const [search, setSearch] = useState("");
+
+  const normalizedSearch = search
+    .trim()
+    .toLocaleLowerCase("pt-BR");
+
+  const filteredClients = clients.filter((client) => {
+    const searchable = [
+      client.name,
+      client.email ?? "",
+      client.phone ?? "",
+      client.notes ?? "",
+    ]
+      .join(" ")
+      .toLocaleLowerCase("pt-BR");
+
+    return searchable.includes(normalizedSearch);
+  });
 
   const commitField = async (
     client: Doc<"clients">,
@@ -115,12 +141,42 @@ export function SheetClients({
 
   const confirmDelete = async () => {
     if (!deleting) return;
+
     try {
-      await deleteClient({ id: deleting._id });
-      toast.success(`"${deleting.name}" e suas sessões foram removidos.`);
+      const linkedEvents = sessions.filter(
+        (session) =>
+          session.clientId === deleting._id &&
+          Boolean(session.googleEventId),
+      );
+
+      if (linkedEvents.length > 0 && googleStatus?.connected !== true) {
+        toast.error(
+          "Este cliente possui sessões vinculadas ao Google Calendar. Reconecte a conta antes de excluir o cliente.",
+        );
+
+        return;
+      }
+
+      // Remova primeiro os eventos externos. Se uma remoção falhar, a exclusão
+      // do cliente é interrompida para que o usuário possa tentar novamente.
+      for (const session of linkedEvents) {
+        await deleteCalendarEvent({
+          sessionId: session._id,
+        });
+      }
+
+      await deleteClient({
+        id: deleting._id,
+      });
+
+      toast.success(
+        `"${deleting.name}" e suas sessões foram removidos.`,
+      );
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Não foi possível excluir.",
+        error instanceof Error
+          ? error.message
+          : "Não foi possível excluir o cliente.",
       );
     } finally {
       setDeleting(null);
@@ -135,10 +191,17 @@ export function SheetClients({
           <Rows3 className="size-4 text-primary" />
           <span className="text-sm font-medium">Clientes</span>
           <span className="text-xs text-muted-foreground">
-            · {clients.length} linha(s)
+            · {filteredClients.length} de {clients.length} linha(s)
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar cliente..."
+            aria-label="Buscar clientes"
+            className="h-8 w-36 sm:w-52"
+          />
           <Button
             size="sm"
             variant="ghost"
@@ -158,7 +221,7 @@ export function SheetClients({
       {/* Grid */}
       <div className="min-h-0 flex-1">
         <SheetTable columns={columns}>
-          {clients.map((client, i) => {
+          {filteredClients.map((client, i) => {
             const own = sessions.filter(
               (s) => s.clientId === client._id && s.status !== "cancelada",
             );

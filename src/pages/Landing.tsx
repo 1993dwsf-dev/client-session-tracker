@@ -34,7 +34,7 @@ const features = [
   {
     icon: BadgeDollarSign,
     title: "Pagamentos por sessão",
-    text: "Valor cobrado, sinal e saldo a receber calculados automaticamente em cada sessão.",
+    text: "Valor contratado, total já pago e saldo a receber, calculados automaticamente por sessão.",
   },
   {
     icon: LayoutDashboard,
@@ -51,7 +51,11 @@ const features = [
 const workflow = [
   { step: "01", title: "Cadastra o cliente", text: "Contatos e preferências no perfil." },
   { step: "02", title: "Cria a sessão", text: "Tipo, data, local e o valor do pacote." },
-  { step: "03", title: "Registra pagamentos", text: "Sinal, parcelas e saldo a receber." },
+  {
+    step: "03",
+    title: "Registra o valor pago",
+    text: "Total recebido e saldo pendente em cada sessão.",
+  },
   { step: "04", title: "Atualiza o status", text: "Até marcar como realizada. Simples assim." },
 ];
 
@@ -159,9 +163,13 @@ export default function Landing() {
                     </div>
                     <Badge className="gap-1 border-transparent bg-primary/10 text-primary" variant="outline">
                       <TrendingUp className="size-3" />
-                      +18%
+                      Em dia
                     </Badge>
                   </div>
+
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Prévia ilustrativa do painel
+                  </p>
 
                   <div className="mt-5 grid grid-cols-3 gap-3">
                     {[

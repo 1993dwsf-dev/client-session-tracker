@@ -7,7 +7,6 @@ import {
   type SheetColumn,
 } from "./sheet";
 import {
-  STATUS_META,
   formatBRL,
   formatDate,
   type SessionWithClient,
@@ -46,15 +45,50 @@ export function SheetSummary({
     .sort((a, b) => b.price - b.paid - (a.price - a.paid))
     .slice(0, 8);
 
+  const now = new Date();
+
+  const monthStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    1,
+  ).getTime();
+
+  const nextMonthStart = new Date(
+    now.getFullYear(),
+    now.getMonth() + 1,
+    1,
+  ).getTime();
+
+  const monthSessions = active.filter(
+    (session) =>
+      session.date >= monthStart &&
+      session.date < nextMonthStart,
+  );
+
   const totals = {
     clients: clientCount,
-    activeSessions: active.length,
-    revenue: active.reduce((sum, s) => sum + s.price, 0),
-    received: active.reduce((sum, s) => sum + s.paid, 0),
-    due: active.reduce((sum, s) => sum + Math.max(0, s.price - s.paid), 0),
-    realized: active
-      .filter((s) => s.status === "realizada")
-      .reduce((sum, s) => sum + s.price, 0),
+
+    activeSessions: monthSessions.length,
+
+    revenue: monthSessions.reduce(
+      (sum, session) => sum + session.price,
+      0,
+    ),
+
+    received: monthSessions.reduce(
+      (sum, session) => sum + session.paid,
+      0,
+    ),
+
+    due: monthSessions.reduce(
+      (sum, session) =>
+        sum + Math.max(0, session.price - session.paid),
+      0,
+    ),
+
+    realized: monthSessions
+      .filter((session) => session.status === "realizada")
+      .reduce((sum, session) => sum + session.price, 0),
   };
 
   return (
@@ -80,11 +114,11 @@ export function SheetSummary({
             {(
               [
                 ["Clientes cadastrados", totals.clients],
-                ["Sessões ativas", totals.activeSessions],
-                ["Valor total contratado", formatBRL(totals.revenue)],
-                ["Total recebido", formatBRL(totals.received)],
-                ["Total a receber", formatBRL(totals.due)],
-                ["Faturado em sessões realizadas", formatBRL(totals.realized)],
+                ["Sessões no mês", totals.activeSessions],
+                ["Valor contratado no mês", formatBRL(totals.revenue)],
+                ["Total recebido no mês", formatBRL(totals.received)],
+                ["Saldo a receber no mês", formatBRL(totals.due)],
+                ["Valor de sessões realizadas no mês", formatBRL(totals.realized)],
               ] as const
             ).map(([label, value], i) => (
               <SheetRow
@@ -202,15 +236,16 @@ export function SheetSummary({
           </SheetTable>
         </section>
       </div>
-    </div>
-  );
+    </div>  );
 }
 
 function startOfToday(): number {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
+  const now = new Date();
+  return new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
 }
 
-// re-export for status labels used in tooltip strings
-export { STATUS_META };
+

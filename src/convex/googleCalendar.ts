@@ -71,6 +71,7 @@ export const status = query({
       connected: true as const,
       calendarId: row.calendarId,
       reminderMinutes: row.reminderMinutes,
+      timeZone: row.timeZone,
       connectedAt: row.connectedAt,
     };
   },
@@ -255,15 +256,81 @@ export const setCalendarId = mutation({
 
 export const setReminderMinutes = mutation({
   args: { minutes: v.number() },
+
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (userId === null) throw new Error("Não autenticado.");
+
+    if (userId === null) {
+      throw new Error("Não autenticado.");
+    }
+
+    const allowedMinutes = [0, 10, 30, 60, 120, 1440, 2880];
+
+    if (!allowedMinutes.includes(args.minutes)) {
+      throw new Error("Intervalo de lembrete inválido.");
+    }
+
     const row = await ctx.db
       .query("googleTokens")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
-    if (!row) throw new Error("Conecte sua conta primeiro.");
-    await ctx.db.patch(row._id, { reminderMinutes: args.minutes });
+
+    if (!row) {
+      throw new Error("Conecte sua conta primeiro.");
+    }
+
+    await ctx.db.patch(row._id, {
+      reminderMinutes: args.minutes,
+    });
+  },
+});
+
+const BRAZILIAN_TIME_ZONES = new Set([
+  "America/Noronha",
+  "America/Belem",
+  "America/Fortaleza",
+  "America/Recife",
+  "America/Araguaina",
+  "America/Maceio",
+  "America/Bahia",
+  "America/Sao_Paulo",
+  "America/Campo_Grande",
+  "America/Cuiaba",
+  "America/Santarem",
+  "America/Porto_Velho",
+  "America/Boa_Vista",
+  "America/Manaus",
+  "America/Eirunepe",
+  "America/Rio_Branco",
+  "UTC",
+]);
+
+export const setTimeZone = mutation({
+  args: { timeZone: v.string() },
+
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+
+    if (userId === null) {
+      throw new Error("Não autenticado.");
+    }
+
+    if (!BRAZILIAN_TIME_ZONES.has(args.timeZone)) {
+      throw new Error("Fuso horário não permitido.");
+    }
+
+    const row = await ctx.db
+      .query("googleTokens")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!row) {
+      throw new Error("Conecte sua conta primeiro.");
+    }
+
+    await ctx.db.patch(row._id, {
+      timeZone: args.timeZone,
+    });
   },
 });
 
@@ -320,6 +387,25 @@ export const setEventId = internalMutation({
   },
 });
 
+export const clearEventId = internalMutation({
+  args: {
+    sessionId: v.id("sessions"),
+    userId: v.id("users"),
+  },
+
+  handler: async (ctx, args) => {
+    const session = await ctx.db.get(args.sessionId);
+
+    if (!session || session.userId !== args.userId) {
+      return;
+    }
+
+    await ctx.db.patch(args.sessionId, {
+      googleEventId: undefined,
+    });
+  },
+});
+
 /** Session + client name, ownership-checked (read from actions). */
 export const getSessionForSync = query({
   args: { sessionId: v.id("sessions") },
@@ -341,6 +427,7 @@ export const getSessionForSync = query({
       notes: session.notes,
       notifyClient: session.notifyClient,
       googleEventId: session.googleEventId,
+      status: session.status,
       clientName: client?.name ?? "Cliente",
       clientPhone: client?.phone,
     };
@@ -436,44 +523,88 @@ function buildEventBody(
     type?: string;
     date: number;
     time?: string;
-  location?: string;
-  price: number;
-  paid: number;
-  notes?: string;
-  notifyClient?: boolean;
-  clientPhone?: string;
-},
-  reminderMinutes?: number,
+    location?: string;
+    price: number;
+    paid: number;
+    notes?: string;
+    notifyClient?: boolean;
+    clientPhone?: string;
+  },
+  reminderMinutes = 60,
+  timeZone = "America/Sao_Paulo",
 ) {
-  const d = new Date(session.date);
-  const [hh, mm] = (session.time ?? "09:00").split(":");
-  const start = new Date(d);
-  start.setHours(Number(hh ?? 9), Number(mm ?? 0), 0, 0);
-  const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
-  const fmt = (x: Date) => {
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}T${pad(x.getHours())}:${pad(x.getMinutes())}:00`;
-  };
+  // O modelo atual guarda a data como timestamp, normalmente criado ao meio-dia
+  // local no formulário. Para as datas usadas pelo Fotoflow no Brasil,
+  // extraímos a parte da data em UTC para evitar deslocamentos de horas.
+  const date = new Date(session.date).toISOString().slice(0, 10);
+  const time = session.time ?? "09:00";
+
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+    throw new Error("Horário da sessão inválido.");
+  }
+
+  if (
+    !Number.isInteger(reminderMinutes) ||
+    reminderMinutes < 0 ||
+    reminderMinutes > 40320
+  ) {
+    throw new Error("Intervalo de lembrete inválido.");
+  }
+
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+
+  // Calcula um término duas horas depois no relógio local do evento.
+  // A hora e a data são então enviadas junto com a zona IANA escolhida.
+  const endWallClock = new Date(
+    Date.UTC(year, month - 1, day, hour, minute + 120),
+  );
+
+  const endDate = endWallClock.toISOString().slice(0, 10);
+  const endTime = [
+    String(endWallClock.getUTCHours()).padStart(2, "0"),
+    String(endWallClock.getUTCMinutes()).padStart(2, "0"),
+  ].join(":");
+
   const lines = [
     `Cliente: ${session.clientName}`,
     session.clientPhone ? `WhatsApp: ${session.clientPhone}` : null,
     session.type ? `Tipo: ${session.type}` : null,
     `Valor: R$ ${session.price.toFixed(2)} | Pago: R$ ${session.paid.toFixed(2)}`,
-    session.notifyClient ? "⚠ Avisar o cliente sobre esta sessão" : null,
+    session.notifyClient
+      ? "Lembrete interno: confirmar comunicação com o cliente"
+      : null,
     session.notes ?? null,
   ].filter(Boolean);
-  const reminder = reminderMinutes ?? 60;
-  const remindersBlock =
-    reminder === 0
-      ? { useDefault: true }
-      : { useDefault: false, overrides: [{ method: "popup" as const, minutes: reminder }] };
+
+  // Para "No horário", use override personalizado com zero minutos.
+  // useDefault: true usaria os lembretes padrão da agenda.
+  const reminders = {
+    useDefault: false,
+    overrides: [
+      {
+        method: "popup" as const,
+        minutes: reminderMinutes,
+      },
+    ],
+  };
+
   return {
     summary: `${session.title} — ${session.clientName}`,
     description: lines.join("\n"),
     ...(session.location ? { location: session.location } : {}),
-    start: { dateTime: fmt(start), timeZone: "America/Sao_Paulo" },
-    end: { dateTime: fmt(end), timeZone: "America/Sao_Paulo" },
-    reminders: remindersBlock,
+
+    start: {
+      dateTime: `${date}T${time}:00`,
+      timeZone,
+    },
+
+    end: {
+      dateTime: `${endDate}T${endTime}:00`,
+      timeZone,
+    },
+
+    reminders,
   };
 }
 
@@ -486,9 +617,14 @@ async function pushSession(ctx: ActionCtx, sessionId: string) {
     const token = await getFreshAccessToken(ctx);
     const myToken = await ctx.runQuery(internal.googleCalendar.getMyToken, {});
     const calendarId = myToken?.calendarId ?? "primary";
-    const reminderMinutes = myToken?.reminderMinutes;
 
-  const body = JSON.stringify(buildEventBody(session, reminderMinutes));
+  const body = JSON.stringify(
+    buildEventBody(
+      session,
+      myToken?.reminderMinutes ?? 60,
+      myToken?.timeZone ?? "America/Sao_Paulo",
+    ),
+  );
   const headers = {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
@@ -520,6 +656,83 @@ async function pushSession(ctx: ActionCtx, sessionId: string) {
   });
   return event.id;
 }
+
+export const deleteSessionEvent = action({
+  args: {
+    sessionId: v.id("sessions"),
+  },
+
+  handler: async (ctx, args) => {
+    // A query verifica a propriedade da sessão antes de devolver o evento.
+    const session = await ctx.runQuery(
+      api.googleCalendar.getSessionForSync,
+      {
+        sessionId: args.sessionId,
+      },
+    );
+
+    if (!session) {
+      throw new Error("Sessão não encontrada.");
+    }
+
+    if (!session.googleEventId) {
+      return { deleted: false };
+    }
+
+    const tokenRow = await ctx.runQuery(
+      internal.googleCalendar.getMyToken,
+      {},
+    );
+
+    if (!tokenRow) {
+      throw new Error("Conecte sua conta do Google primeiro.");
+    }
+
+    const token = await getFreshAccessToken(ctx);
+    const calendarId = tokenRow.calendarId ?? "primary";
+
+    const endpoint =
+      `${CALENDAR_API}/calendars/` +
+      `${encodeURIComponent(calendarId)}/events/` +
+      `${encodeURIComponent(session.googleEventId)}`;
+
+    const response = await fetch(endpoint, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    // 404/410 significa que o evento já não está disponível no calendário.
+    if (
+      !response.ok &&
+      response.status !== 404 &&
+      response.status !== 410
+    ) {
+      const status = response.status;
+
+      // Evita registrar conteúdo potencialmente sensível de respostas remotas.
+      console.error(
+        "[googleCalendar] event deletion failed:",
+        status,
+      );
+
+      throw new Error(
+        "Não foi possível remover o evento do Google Calendar.",
+      );
+    }
+
+    await ctx.runMutation(
+      internal.googleCalendar.clearEventId,
+      {
+        sessionId: args.sessionId,
+        userId: tokenRow.userId,
+      },
+    );
+
+    return { deleted: true };
+  },
+});
 
 /** Pushes one session as a Google Calendar event (create or update). */
 export const syncSession = action({

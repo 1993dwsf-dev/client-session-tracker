@@ -79,9 +79,14 @@ async function reportErrorToVly(errorData: {
   try {
     await fetch(monitoringUrl, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         ...errorData,
-        url: window.location.href,
+        // Não transmitir query string nem fragmento, que podem conter parâmetros
+        // temporários de autenticação ou detalhes da navegação.
+        url: `${window.location.origin}${window.location.pathname}`,
         projectSemanticIdentifier: appId,
       }),
     });

@@ -151,7 +151,7 @@ eslint/typescript-eslint), sem impacto no runtime.
 ## 9. Testes automatizados
 
 ```bash
-bun test           # Vitest, arquivos src/**/*.test.ts
+bun run test        # Vitest, arquivos src/**/*.test.ts
 ```
 
 Cobrem a lógica pura de `src/lib` (guard de formula-injection do CSV, parsing de

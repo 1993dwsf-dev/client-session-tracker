@@ -1,4 +1,14 @@
-.env.local
-node_modules
-dist
-src/convex/_generated
+# Arquivos de ambiente e segredos
+.env*
+!.env.example
+
+# Dependências e build
+node_modules/
+dist/
+
+# Dados operacionais e backups
+backups/
+*.zip
+
+# Arquivos gerados pelo Convex
+src/convex/_generated/

@@ -7,42 +7,82 @@ const http = httpRouter();
 
 auth.addHttpRoutes(http);
 
+function getFrontendOrigin(): string {
+  const configuredUrl = process.env.SITE_URL;
+
+  if (!configuredUrl) {
+    throw new Error("SITE_URL não está configurada.");
+  }
+
+  const parsedUrl = new URL(configuredUrl);
+
+  const isLocalhost =
+    parsedUrl.hostname === "localhost" ||
+    parsedUrl.hostname === "127.0.0.1";
+
+  if (parsedUrl.protocol !== "https:" && !isLocalhost) {
+    throw new Error("SITE_URL deve usar HTTPS em produção.");
+  }
+
+  return parsedUrl.origin;
+}
+
 /**
- * OAuth callback from Google: hands code+state to the action (which validates
- * the state and stores tokens), then bounces the photographer back to the app.
+ * Callback OAuth do Google.
+ *
+ * O destino é a origem pública configurada no servidor, nunca um parâmetro
+ * recebido da requisição. Isso evita transformar o callback em open redirect.
  */
 http.route({
   path: "/api/google/callback",
   method: "GET",
   handler: httpAction(async (ctx, request) => {
     const url = new URL(request.url);
+
     const code = url.searchParams.get("code") ?? "";
     const state = url.searchParams.get("state") ?? "";
-    const error = url.searchParams.get("error");
+    const oauthError = url.searchParams.get("error");
 
-    // The bounce target is a fixed path — never derived from request params —
-    // so the 302 cannot become an open redirect. no-store keeps code+state out
-    // of browser history, bfcache and intermediary caches; the other headers
-    // apply baseline hardening to the only endpoint this app serves itself.
     const headers = {
       "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-    } as const;
-    const redirectTo = (status: "connected" | "error") =>
-      new Response(null, {
+      "Referrer-Policy": "no-referrer",
+    };
+
+    let frontendOrigin: string;
+
+    try {
+      frontendOrigin = getFrontendOrigin();
+    } catch (error) {
+      console.error(
+        "[googleCalendar] frontend URL configuration error:",
+        error instanceof Error ? error.message : "Unknown error",
+      );
+
+      return new Response("Frontend URL is not configured.", {
+        status: 500,
+        headers,
+      });
+    }
+
+    const redirectTo = (status: "connected" | "error") => {
+      const destination = new URL("/dashboard", frontendOrigin);
+
+      destination.searchParams.set("google", status);
+
+      return new Response(null, {
         status: 302,
         headers: {
-          Location: `${url.origin}/dashboard?google=${status}`,
           ...headers,
+          Location: destination.toString(),
         },
       });
+    };
 
-    if (error || !code || !state) {
+    if (oauthError || !code || !state) {
       return redirectTo("error");
     }
 
-    let ok = false;
     try {
       const result = await ctx.runAction(
         internal.googleCalendar.oauthCallback,
@@ -51,12 +91,16 @@ http.route({
           state,
         },
       );
-      ok = result.ok;
-    } catch (err) {
-      console.error("[googleCalendar] callback failed:", err);
-    }
 
-    return redirectTo(ok ? "connected" : "error");
+      return redirectTo(result.ok ? "connected" : "error");
+    } catch (error) {
+      console.error(
+        "[googleCalendar] callback failed:",
+        error instanceof Error ? error.message : "Unknown error",
+      );
+
+      return redirectTo("error");
+    }
   }),
 });
 

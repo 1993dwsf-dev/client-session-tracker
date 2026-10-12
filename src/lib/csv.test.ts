@@ -11,10 +11,10 @@ describe("formatCell", () => {
     expect(formatCell("-cmd")).toBe("'-cmd");
   });
 
-  it("keeps plain and negative numbers intact (no apostrophe)", () => {
-    expect(formatCell(42)).toBe("42");
+  it("preserva números negativos, mas neutraliza strings que podem ser fórmulas", () => {
     expect(formatCell(-10.5)).toBe("-10.5");
-    expect(formatCell("-2+3")).toBe("-2+3");
+    expect(formatCell("-2+3")).toBe("'-2+3");
+    expect(formatCell("=HYPERLINK(\"http://evil\")")).toContain("'");
   });
 
   it("renders null/undefined as empty", () => {

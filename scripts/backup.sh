@@ -25,8 +25,8 @@ while [[ $# -gt 0 ]]; do
     --prod) DEPLOYMENT_ARG="--prod"; shift ;;
     --retention)
       RETENTION="${2:-}"
-      if ! [[ "$RETENTION" =~ ^[0-9]+$ ]]; then
-        echo "erro: --retention espera um número inteiro" >&2
+      if ! [[ "$RETENTION" =~ ^[1-9][0-9]*$ ]]; then
+        echo "erro: --retention espera um inteiro maior ou igual a 1" >&2
         exit 1
       fi
       shift 2

@@ -9,6 +9,44 @@ const cleanText = (value?: string) => {
   return trimmed ? trimmed : undefined;
 };
 
+function validateSessionInput(args: {
+  title: string;
+  date: number;
+  time?: string;
+  price: number;
+  paid: number;
+}) {
+  const title = args.title.trim();
+
+  if (!title) {
+    throw new Error("Dê um nome à sessão.");
+  }
+
+  if (title.length > 200) {
+    throw new Error("O nome da sessão excede o limite de 200 caracteres.");
+  }
+
+  if (
+    !Number.isFinite(args.date) ||
+    !Number.isFinite(new Date(args.date).getTime()) ||
+    args.date < 0
+  ) {
+    throw new Error("Data da sessão inválida.");
+  }
+
+  if (!Number.isFinite(args.price) || args.price < 0) {
+    throw new Error("O valor da sessão não pode ser negativo ou inválido.");
+  }
+
+  if (!Number.isFinite(args.paid) || args.paid < 0) {
+    throw new Error("O valor pago não pode ser negativo ou inválido.");
+  }
+
+  if (args.time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(args.time)) {
+    throw new Error("Horário inválido. Use o formato HH:mm.");
+  }
+}
+
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -58,8 +96,9 @@ export const create = mutation({
       throw new Error("Cliente não encontrado.");
     }
 
+    validateSessionInput(args);
+
     const title = args.title.trim();
-    if (!title) throw new Error("Dê um nome à sessão.");
 
     const id = await ctx.db.insert("sessions", {
       userId,
@@ -69,8 +108,11 @@ export const create = mutation({
       date: args.date,
       time: cleanText(args.time),
       location: cleanText(args.location),
-      price: Math.max(0, args.price),
-      paid: Math.max(0, args.paid),
+
+      // Não use Math.max para corrigir silenciosamente entradas inválidas.
+      price: args.price,
+      paid: args.paid,
+
       status: args.status,
       notes: cleanText(args.notes),
       notifyClient: args.notifyClient,
@@ -116,8 +158,9 @@ export const update = mutation({
       throw new Error("Cliente não encontrado.");
     }
 
+    validateSessionInput(args);
+
     const title = args.title.trim();
-    if (!title) throw new Error("Dê um nome à sessão.");
 
     await ctx.db.patch(args.id, {
       clientId: args.clientId,
@@ -126,8 +169,8 @@ export const update = mutation({
       date: args.date,
       time: cleanText(args.time),
       location: cleanText(args.location),
-      price: Math.max(0, args.price),
-      paid: Math.max(0, args.paid),
+      price: args.price,
+      paid: args.paid,
       status: args.status,
       notes: cleanText(args.notes),
       notifyClient: args.notifyClient,
