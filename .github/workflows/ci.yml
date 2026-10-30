@@ -23,7 +23,12 @@ jobs:
       - name: Security audit
         run: bun audit
       - name: Deploy Convex backend from main, when configured
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.CONVEX_DEPLOY_KEY != ''
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-        run: bunx convex deploy
+        run: |
+          if [ -z "$CONVEX_DEPLOY_KEY" ]; then
+            echo "::notice::CONVEX_DEPLOY_KEY not configured; backend deployment skipped."
+            exit 0
+          fi
+          bunx convex deploy
