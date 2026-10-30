@@ -16,7 +16,8 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         }
         if (params.acceptedTerms !== "true") throw new Error("Aceite dos termos obrigatório.");
       }
-      return params.flow === "signUp" ? { email, termsAcceptedAt: Date.now(), termsVersion: "2026-10" } : { email };
+      // The profile is persisted on signUp; on signIn these fields are ignored.
+      return { email, termsAcceptedAt: Date.now(), termsVersion: "2026-10" };
     },
     validatePasswordRequirements(password) {
       if (password.length < 12 || password.length > 128) {
