@@ -70,3 +70,11 @@ precisar de limpeza manual; o painel emite aviso.
   por ID alheio e leitura após logout.
 - Validar restauração/backup e dados do fornecedor nos textos legais.
 - Só depois iniciar uso real. Assinatura e cobrança fora do aplicativo.
+
+## Migração de contas antigas
+
+Se este projeto tiver usuários/dados pré-existentes do login Freebuff/OTP,
+não presuma que a nova conta por senha herdará o mesmo `userId`. Antes de
+atender um cliente existente, inventarie os registros e migre a titularidade
+com backup e procedimento autorizado. Uma nova conta isolada não visualiza
+automaticamente os registros associados a outro usuário.
