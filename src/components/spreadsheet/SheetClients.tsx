@@ -141,43 +141,29 @@ export function SheetClients({
 
   const confirmDelete = async () => {
     if (!deleting) return;
-
     try {
       const linkedEvents = sessions.filter(
-        (session) =>
-          session.clientId === deleting._id &&
-          Boolean(session.googleEventId),
+        (session) => session.clientId === deleting._id && Boolean(session.googleEventId),
       );
-
-      if (linkedEvents.length > 0 && googleStatus?.connected !== true) {
-        toast.error(
-          "Este cliente possui sessões vinculadas ao Google Calendar. Reconecte a conta antes de excluir o cliente.",
-        );
-
-        return;
-      }
-
-      // Remova primeiro os eventos externos. Se uma remoção falhar, a exclusão
-      // do cliente é interrompida para que o usuário possa tentar novamente.
+      let requiresManualCalendarCleanup = false;
       for (const session of linkedEvents) {
-        await deleteCalendarEvent({
-          sessionId: session._id,
-        });
+        if (googleStatus?.connected !== true) {
+          requiresManualCalendarCleanup = true;
+          continue;
+        }
+        try {
+          await deleteCalendarEvent({ sessionId: session._id });
+        } catch {
+          requiresManualCalendarCleanup = true;
+        }
       }
-
-      await deleteClient({
-        id: deleting._id,
-      });
-
-      toast.success(
-        `"${deleting.name}" e suas sessões foram removidos.`,
-      );
+      await deleteClient({ id: deleting._id });
+      toast.success(`"${deleting.name}" e suas sessões foram removidos do Fotoflow.`);
+      if (requiresManualCalendarCleanup) {
+        toast.warning("Confira o Google Calendar: alguns eventos podem precisar ser removidos manualmente.");
+      }
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível excluir o cliente.",
-      );
+      toast.error(error instanceof Error ? error.message : "Não foi possível excluir o cliente.");
     } finally {
       setDeleting(null);
     }

@@ -20,3 +20,5 @@ jobs:
         run: bun run test
       - name: Build
         run: bun run build
+      - name: Dependency vulnerability audit
+        run: bun audit

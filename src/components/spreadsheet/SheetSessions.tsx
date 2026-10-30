@@ -329,33 +329,26 @@ export function SheetSessions({
 
   const confirmDelete = async () => {
     if (!toDelete) return;
-
     try {
+      let requiresManualCalendarCleanup = false;
       if (toDelete.googleEventId) {
-        if (!googleConnected) {
-          toast.error(
-            "Esta sessão possui um evento associado. Reconecte o Google Calendar antes de excluí-la.",
-          );
-
-          return;
+        if (googleConnected) {
+          try {
+            await deleteCalendarEvent({ sessionId: toDelete._id });
+          } catch {
+            requiresManualCalendarCleanup = true;
+          }
+        } else {
+          requiresManualCalendarCleanup = true;
         }
-
-        await deleteCalendarEvent({
-          sessionId: toDelete._id,
-        });
       }
-
-      await deleteSession({
-        id: toDelete._id,
-      });
-
-      toast.success("Sessão removida.");
+      await deleteSession({ id: toDelete._id });
+      toast.success("Sessão removida do Fotoflow.");
+      if (requiresManualCalendarCleanup) {
+        toast.warning("Confira o Google Calendar: o evento pode precisar ser removido manualmente.");
+      }
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível excluir a sessão.",
-      );
+      toast.error(error instanceof Error ? error.message : "Não foi possível excluir a sessão.");
     } finally {
       setToDelete(null);
     }
