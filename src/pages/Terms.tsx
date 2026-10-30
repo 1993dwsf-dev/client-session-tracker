@@ -25,9 +25,8 @@ export default function Terms() {
 
       <LegalSection heading="3. Conta e segurança">
         <p>
-          O acesso se dá por código enviado ao seu e-mail. Você é responsável por
-          manter o controle da sua caixa de entrada e por toda atividade realizada
-          na sua conta.
+          O acesso utiliza e-mail e senha. Você é responsável por manter
+          sua senha em segurança e por toda atividade realizada na sua conta.
         </p>
       </LegalSection>
 

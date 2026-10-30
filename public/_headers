@@ -1,17 +1,7 @@
-# Static hosting header config (Netlify / Cloudflare Pages format).
-# Copied to the build output by Vite. If the app is served by another host,
-# replicate these headers there — see docs/OPERATIONS.md section 6.
-#
-# CSP notes: 'unsafe-inline' stays on script/style so the Vite dev tooling and
-# Tailwind keep working; the real hardening here is connect-src (limits where
-# an injected script could exfiltrate data), object-src, base-uri and
-# frame-ancestors. Tighten script-src once the build pipeline no longer needs
-# the inline dev preamble.
-
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.convex.cloud wss://*.convex.cloud https://*.convex.site; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'

@@ -26,7 +26,7 @@ export default function Privacy() {
         <ul className="list-disc space-y-1 pl-5">
           <li>
             <span className="font-medium text-foreground">Conta:</span> e-mail
-            usado no acesso por código (OTP) e nome, quando informado.
+            usado no acesso e credenciais protegidas por hash, além do nome, quando informado.
           </li>
           <li>
             <span className="font-medium text-foreground">Clientes:</span> nome,
@@ -58,9 +58,7 @@ export default function Privacy() {
       <LegalSection heading="4. Compartilhamento com operadores">
         <p>
           Não vendemos dados. Compartilhamos o mínimo necessário com prestadores
-          que viabilizam o serviço: infraestrutura de banco de dados (Convex), o
-          provedor de e-mail que entrega o código de acesso e, se você conectar, a
-          API do Google Calendar. Cada um trata os dados conforme suas próprias
+          que viabilizam o serviço: infraestrutura de banco de dados (Convex), e, se você conectar, a API do Google Calendar. Cada um trata os dados conforme suas próprias
           políticas.
         </p>
       </LegalSection>

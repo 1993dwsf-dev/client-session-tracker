@@ -11,4 +11,4 @@ backups/
 *.zip
 
 # Arquivos gerados pelo Convex
-src/convex/_generated/
+# src/convex/_generated/ (tracked for repeatable builds)
