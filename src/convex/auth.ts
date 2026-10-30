@@ -11,11 +11,12 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       }
       if (params.flow === "signUp") {
         const invite = process.env.FOTOFLOW_INVITE_CODE;
-        if (invite && String(params.inviteCode ?? "") !== invite) {
+        if (!invite || String(params.inviteCode ?? "") !== invite) {
           throw new Error("Código de convite inválido.");
         }
+        if (params.acceptedTerms !== "true") throw new Error("Aceite dos termos obrigatório.");
       }
-      return { email };
+      return params.flow === "signUp" ? { email, termsAcceptedAt: Date.now(), termsVersion: "2026-10" } : { email };
     },
     validatePasswordRequirements(password) {
       if (password.length < 12 || password.length > 128) {

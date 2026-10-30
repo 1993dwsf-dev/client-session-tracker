@@ -483,6 +483,7 @@ export function SheetSessions({
                 </SheetCell>
                 <SheetCell align="center">
                   <div className="flex items-center justify-center gap-0.5">
+                    {import.meta.env.VITE_ENABLE_GOOGLE_CALENDAR === "true" && (
                     <button
                       type="button"
                       onClick={() => void handleSyncToCalendar(session)}
@@ -503,6 +504,7 @@ export function SheetSessions({
                         Enviar {session.title} ao Google Calendar
                       </span>
                     </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => openEdit(session)}

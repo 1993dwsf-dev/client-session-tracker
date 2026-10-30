@@ -45,7 +45,9 @@ const schema = defineSchema(
       // but makes any user document carrying them unreadable once it is on.
       phone: v.optional(v.string()),
       phoneVerificationTime: v.optional(v.number()),
-      isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
+      isAnonymous: v.optional(v.boolean()), // legacy users
+      termsAcceptedAt: v.optional(v.number()),
+      termsVersion: v.optional(v.string()),
 
       // Deliberately a plain string, not roleValidator: nothing in this app
       // writes `role`, so the only writer is the platform. With schema

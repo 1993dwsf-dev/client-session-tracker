@@ -42,7 +42,7 @@ function Auth({ redirectAfterAuth = "/dashboard" }: { redirectAfterAuth?: string
     try {
       await signIn("password", {
         email, password, flow: mode,
-        ...(mode === "signUp" ? { inviteCode: String(form.get("inviteCode") ?? "") } : {}),
+        ...(mode === "signUp" ? { inviteCode: String(form.get("inviteCode") ?? ""), acceptedTerms: "true" } : {}),
       });
       navigate(redirect, { replace: true });
     } catch {
@@ -83,8 +83,8 @@ function Auth({ redirectAfterAuth = "/dashboard" }: { redirectAfterAuth?: string
                 <>
                   <p className="text-xs text-muted-foreground">Use uma senha única com 12 caracteres ou mais.</p>
                   <label className="block space-y-1 text-sm">
-                    <span>Código de convite (caso tenha recebido)</span>
-                    <Input name="inviteCode" type="text" autoComplete="off" disabled={working} />
+                    <span>Código de convite para ativar a conta</span>
+                    <Input name="inviteCode" type="text" autoComplete="off" required disabled={working} />
                   </label>
                   <label className="flex items-start gap-2 text-xs leading-5">
                     <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)}

@@ -101,7 +101,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <AlertsBell />
-            <GoogleMenu />
+            {import.meta.env.VITE_ENABLE_GOOGLE_CALENDAR === "true" && <GoogleMenu />}
             <div className="hidden items-center gap-2 sm:flex">
               <Avatar className="size-8 border border-border/70">
                 <AvatarFallback className="bg-accent text-xs font-semibold text-accent-foreground">
